@@ -1,6 +1,6 @@
-# Roblox Blocker for Windows (Production‑Grade)
+# Roblox Blocker for Windows
 
-A production‑ready PowerShell script that silently blocks Roblox execution and network access on Windows 10/11. It combines firewall rules, Software Restriction Policies, browser URL blocklists, and a real‑time process guard into a single maintenance‑free solution – ideal for enterprise, educational, and parental control environments.
+A PowerShell script that silently blocks Roblox execution and network access on Windows 10/11. It combines firewall rules, Software Restriction Policies, browser URL blocklists, and a real‑time process guard into a single maintenance‑free solution – ideal for enterprise, educational, and parental control environments.
 
 ## Features
 
