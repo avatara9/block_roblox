@@ -2,12 +2,12 @@
 
 # Roblox Block for Windows
 
-### Silent, multi-layer Roblox blocking for Windows 10 and Windows 11
+### A simple PowerShell script that blocks Roblox on Windows 10 and Windows 11
 
-[![Release](https://img.shields.io/badge/release-v0.0.3-blue.svg)](#release-v003)
+[![Release](https://img.shields.io/badge/release-v0.0.3-blue.svg)](#version-003)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-5391FE.svg?logo=powershell&logoColor=white)](#requirements)
-[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4.svg?logo=windows&logoColor=white)](#compatibility)
-[![Mode](https://img.shields.io/badge/mode-silent%20%7C%20autonomous-success.svg)](#how-it-works)
+[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4.svg?logo=windows&logoColor=white)](#requirements)
+[![Mode](https://img.shields.io/badge/runs-silently-success.svg)](#what-the-script-does)
 
 **Version 0.0.3**
 
@@ -16,195 +16,15 @@
 ---
 
 > [!WARNING]
-> Use this project only on computers you own or are authorized to administer.
-> The script applies machine-wide firewall, registry, browser, scheduled-task,
-> process-control, and Software Restriction Policy changes.
+> Use this script only on computers that you own or are allowed to manage.
+> It changes Windows Firewall rules, local security policies, browser policies,
+> scheduled tasks, and files under `C:\ProgramData`.
 
-> [!IMPORTANT]
-> The initial installation must be started from an **elevated Windows PowerShell
-> session**. This means Windows PowerShell must be opened with
-> **Run as administrator** before the script is executed.
+# Quick Start
 
-## Table of contents
+This is the shortest way to install the script.
 
-- [Overview](#overview)
-- [Features](#features)
-- [How it works](#how-it-works)
-- [Requirements](#requirements)
-- [Quick start](#quick-start)
-- [How to open elevated PowerShell](#how-to-open-elevated-powershell)
-- [Installation](#installation)
-- [Command modes](#command-modes)
-- [Verification](#verification)
-- [Installed components](#installed-components)
-- [Logging and monitoring](#logging-and-monitoring)
-- [Security and reliability](#security-and-reliability)
-- [Performance](#performance)
-- [Compatibility](#compatibility)
-- [Corporate deployment](#corporate-deployment)
-- [Code signing](#code-signing)
-- [Troubleshooting](#troubleshooting)
-- [Uninstallation](#uninstallation)
-- [Release v0.0.3](#release-v003)
-- [Disclaimer](#disclaimer)
-
-## Overview
-
-`Block-Roblox-All.ps1` is a production-oriented PowerShell solution that
-blocks Roblox through several independent Windows security layers.
-
-It is intended for:
-
-- parental-control scenarios;
-- shared or managed Windows computers;
-- standalone workstations;
-- domain-joined endpoints;
-- GPO, SCCM/MECM, Intune, RMM, or other software-deployment workflows.
-
-The script is designed to operate silently and autonomously after deployment.
-It does not require a permanently open console window or an interactive user
-session.
-
-## Features
-
-### Network blocking
-
-- Blocks outbound Roblox traffic through Windows Defender Firewall.
-- Uses the PowerShell `NetSecurity` module when available.
-- Supports a Windows Firewall COM fallback when `NetSecurity` is unavailable.
-- Creates deterministic, idempotent rules for discovered Roblox executable
-  paths.
-- Supports Microsoft Store/AppX package-specific firewall rules when package
-  information is available.
-- Warns when one or more Windows Firewall profiles are disabled.
-
-### Application execution blocking
-
-- Creates machine-level Software Restriction Policy rules.
-- Blocks known Roblox executable names.
-- Blocks common Roblox installation, update, download, and temporary paths.
-- Covers desktop Roblox, Roblox Studio, installers, launchers, crash handlers,
-  and Microsoft Store installations.
-
-### Process enforcement
-
-- Stops Roblox processes that are already running during installation or
-  repair.
-- Installs a hidden process guard running as `NT AUTHORITY\SYSTEM`.
-- Uses `Win32_ProcessStartTrace` events instead of continuously enumerating all
-  running processes.
-- Falls back to targeted polling if WMI process-start events are unavailable.
-- Detects and terminates the Microsoft Store process only when its executable
-  path belongs to the Roblox package.
-
-### Browser blocking
-
-- Blocks `roblox.com` and `rbxcdn.com` in Microsoft Edge.
-- Blocks the same domains in Google Chrome.
-- Adds a Mozilla Firefox `WebsiteFilter` policy.
-- Preserves unrelated browser policy entries.
-- Uses atomic Firefox policy-file updates to reduce the risk of corrupted JSON.
-
-### Autonomous maintenance
-
-- Searches known Roblox locations for newly installed or updated executables.
-- Adds missing firewall rules automatically.
-- Performs periodic health checks.
-- Repairs missing or modified managed components.
-- Keeps protected primary and backup copies of the deployment script.
-- Supports silent refresh, repair, and uninstall operations.
-
-### Production controls
-
-- Supports `-WhatIf` for safe change simulation.
-- Supports `-Verbose` for detailed diagnostic output.
-- Supports optional Windows Event Log integration.
-- Supports optional Authenticode signature enforcement.
-- Uses structured JSON Lines logging.
-- Rotates log files.
-- Applies changes idempotently.
-- Rolls back changes made by the current run after a critical deployment
-  failure where restoration is technically possible.
-
-## How it works
-
-```mermaid
-flowchart TD
-    A[Block-Roblox-All.ps1] --> B[Windows Firewall]
-    A --> C[Software Restriction Policies]
-    A --> D[Browser Policies]
-    A --> E[Scheduled Tasks]
-    A --> F[Protected Installation Files]
-
-    B --> B1[Executable path rules]
-    B --> B2[AppX package rules]
-    B --> B3[NetSecurity or COM fallback]
-
-    C --> C1[Known executable names]
-    C --> C2[Roblox installation paths]
-    C --> C3[Download and temporary paths]
-
-    D --> D1[Microsoft Edge]
-    D --> D2[Google Chrome]
-    D --> D3[Mozilla Firefox]
-
-    E --> E1[Process Guard]
-    E --> E2[Firewall Refresh]
-    E --> E3[Health Check]
-
-    F --> F1[Primary script]
-    F --> F2[Backup script]
-    F --> F3[Guard script]
-    F --> F4[State file and logs]
-```
-
-The blocking layers are intentionally independent. If one mechanism is
-unavailable or overridden, the remaining mechanisms continue to provide
-protection.
-
-## Requirements
-
-### Supported operating systems
-
-- Windows 10
-- Windows 11
-- 32-bit and 64-bit installations
-- Standalone and domain-joined computers
-
-### PowerShell
-
-- Windows PowerShell 5.1 or later
-
-The script may be launched from PowerShell 7, but Windows-specific maintenance
-components use native Windows PowerShell 5.1 for maximum Windows 10/11
-compatibility.
-
-### Required permissions
-
-- Local administrator privileges for installation
-- Local administrator privileges for repair
-- Local administrator privileges for uninstallation
-
-Restricted users should use **standard Windows accounts**, not administrator
-accounts. A local administrator can remove or disable the controls installed by
-this project.
-
-### Windows components
-
-The script uses available built-in Windows components and applies graceful
-fallbacks where possible:
-
-- Windows Defender Firewall;
-- `NetSecurity`;
-- `ScheduledTasks`;
-- AppX cmdlets;
-- CIM/WMI;
-- Windows Registry;
-- Windows Event Log, when enabled.
-
-## Quick start
-
-### 1. Download the script
+## Step 1: Download the file
 
 Download:
 
@@ -212,13 +32,13 @@ Download:
 Block-Roblox-All.ps1
 ```
 
-For the examples in this README, place it in:
+Place it in:
 
 ```text
-C:\Users\<USERNAME>\AppData\w_temp\Block-Roblox-All.ps1
+C:\Users\<YOUR_USERNAME>\AppData\w_temp\Block-Roblox-All.ps1
 ```
 
-Create the directory when necessary:
+You can create the folder with:
 
 ```powershell
 New-Item `
@@ -227,14 +47,30 @@ New-Item `
     -Force
 ```
 
-### 2. Open Windows PowerShell as Administrator
+## Step 2: Open PowerShell as Administrator
 
-Follow the detailed instructions in
-[How to open elevated PowerShell](#how-to-open-elevated-powershell).
+1. Open the Windows **Start** menu.
+2. Type:
 
-### 3. Simulate the installation first
+   ```text
+   Windows PowerShell
+   ```
 
-Run:
+3. Right-click **Windows PowerShell**.
+4. Select **Run as administrator**.
+5. Click **Yes** when Windows asks for permission.
+6. Check that the title bar says:
+
+   ```text
+   Administrator: Windows PowerShell
+   ```
+
+This is important. The script cannot install its firewall rules, policies, and
+scheduled tasks from a normal PowerShell window.
+
+## Step 3: Optional safety check
+
+Before installing, you can see what the script plans to change:
 
 ```powershell
 powershell.exe `
@@ -247,11 +83,11 @@ powershell.exe `
     -Verbose
 ```
 
-This displays planned operations without applying system changes.
+`-WhatIf` shows planned changes without applying them.
 
-### 4. Install
+## Step 4: Install
 
-Run:
+Run this command in the Administrator PowerShell window:
 
 ```powershell
 powershell.exe `
@@ -263,15 +99,19 @@ powershell.exe `
     -File "$env:USERPROFILE\AppData\w_temp\Block-Roblox-All.ps1"
 ```
 
-### 5. Verify
+The script runs silently. It may look like nothing happened. That is normal.
 
-Open a new elevated PowerShell session and run:
+## Step 5: Check that it is installed
+
+Open PowerShell as Administrator and run:
 
 ```powershell
 Get-ScheduledTask -TaskName "RobloxBlock-*"
 ```
 
-Then inspect the log:
+You should see RobloxBlock tasks.
+
+Check the main log:
 
 ```powershell
 Get-Content `
@@ -279,78 +119,213 @@ Get-Content `
     -Tail 50
 ```
 
-## How to open elevated PowerShell
+---
 
-An **elevated PowerShell session** is a PowerShell window running with local
-administrator rights.
+## Table of Contents
 
-### Method 1: Start menu
+- [What the script does](#what-the-script-does)
+- [How it works](#how-it-works)
+- [Requirements](#requirements)
+- [Installation details](#installation-details)
+- [Available commands](#available-commands)
+- [How to verify the installation](#how-to-verify-the-installation)
+- [Installed files and tasks](#installed-files-and-tasks)
+- [Logs](#logs)
+- [Safety and recovery](#safety-and-recovery)
+- [Performance](#performance)
+- [Compatibility](#compatibility)
+- [Troubleshooting](#troubleshooting)
+- [Uninstall](#uninstall)
+- [Optional: installation on several computers](#optional-installation-on-several-computers)
+- [Optional: code signing](#optional-code-signing)
+- [Version 0.0.3](#version-003)
+- [Disclaimer](#disclaimer)
 
-1. Open the Windows **Start** menu.
-2. Type:
+# What the Script Does
 
-   ```text
-   Windows PowerShell
-   ```
+The script blocks Roblox in several different ways.
 
-3. Right-click **Windows PowerShell**.
-4. Select **Run as administrator**.
-5. When User Account Control asks whether the application may make changes,
-   select **Yes**.
-6. Confirm that the title bar begins with:
+## Blocks Roblox Internet Access
 
-   ```text
-   Administrator: Windows PowerShell
-   ```
+- Creates outbound Windows Firewall block rules.
+- Uses the PowerShell `NetSecurity` module when available.
+- Can use the Windows Firewall COM interface as a fallback.
+- Creates rules for Roblox executable files.
+- Creates package rules for the Microsoft Store version when AppX information
+  is available.
+- Warns when Windows Firewall profiles are disabled.
 
-### Method 2: Win+X menu
+## Blocks Roblox from Starting
 
-1. Press `Win + X`.
-2. Select **Windows PowerShell (Admin)** or **Terminal (Admin)**.
-3. Approve the User Account Control prompt.
-
-On newer Windows 11 builds, Windows Terminal may open instead. Make sure its
-PowerShell tab is running with administrator privileges.
-
-### Verify administrator rights
-
-Run:
-
-```powershell
-([Security.Principal.WindowsPrincipal] `
-    [Security.Principal.WindowsIdentity]::GetCurrent()
-).IsInRole(
-    [Security.Principal.WindowsBuiltInRole]::Administrator
-)
-```
-
-Expected result:
+The script creates Software Restriction Policy rules for:
 
 ```text
-True
+Roblox.exe
+RobloxCrashHandler.exe
+RobloxGameClient.exe
+RobloxInstaller.exe
+RobloxPlayerBeta.exe
+RobloxPlayerInstaller.exe
+RobloxPlayerLauncher.exe
+RobloxStudioBeta.exe
+RobloxStudioLauncherBeta.exe
 ```
 
-A result of `False` means the window is not elevated.
+It also blocks common Roblox folders, including:
 
-### Why elevation is required
+```text
+%SystemDrive%\Users\*\AppData\Local\Roblox\*
+%SystemDrive%\Users\*\AppData\Local\Temp\Roblox\*
+%SystemDrive%\Users\*\AppData\Local\Temp\Roblox*.exe
+%SystemDrive%\Users\*\Desktop\Roblox*.exe
+%SystemDrive%\Users\*\Downloads\Roblox*.exe
+%ProgramFiles%\Roblox\*
+%ProgramFiles(x86)%\Roblox\*
+%ProgramData%\Roblox\*
+%ProgramFiles%\WindowsApps\ROBLOXCORPORATION.ROBLOX_*
+```
 
-Installation changes machine-wide resources:
+## Stops Running Roblox Processes
 
-- `HKLM` registry policies;
+- Stops Roblox processes during installation or repair.
+- Installs a hidden process guard.
+- Runs the guard as `NT AUTHORITY\SYSTEM`.
+- Uses Windows process-start events.
+- Does not constantly scan every process.
+- Uses a small targeted fallback when WMI events are unavailable.
+
+## Blocks Roblox Websites
+
+The script blocks:
+
+```text
+roblox.com
+rbxcdn.com
+```
+
+Supported browsers:
+
+- Microsoft Edge
+- Google Chrome
+- Mozilla Firefox
+
+Browser policies may make the browser display:
+
+```text
+Managed by your organization
+```
+
+This is normal when system-wide browser policies are active.
+
+## Repairs Itself
+
+The script can check and restore:
+
+- firewall rules;
+- browser policies;
+- Software Restriction Policy rules;
+- scheduled tasks;
+- the process guard;
+- the main installed script;
+- the backup copy;
+- installation state files.
+
+# How It Works
+
+The old Mermaid diagram was replaced with a large text diagram so it stays
+readable on desktop and mobile GitHub pages.
+
+```text
++--------------------------------------------------+
+|                  ROBLOX STARTS                    |
++--------------------------------------------------+
+                         |
+                         v
++--------------------------------------------------+
+|  1. PROCESS GUARD                                |
+|  Detects Roblox startup and closes the process   |
++--------------------------------------------------+
+                         |
+                         v
++--------------------------------------------------+
+|  2. SOFTWARE RESTRICTION POLICIES                |
+|  Block known Roblox files and installation paths |
++--------------------------------------------------+
+                         |
+                         v
++--------------------------------------------------+
+|  3. WINDOWS FIREWALL                             |
+|  Blocks outbound Roblox network connections      |
++--------------------------------------------------+
+                         |
+                         v
++--------------------------------------------------+
+|  4. BROWSER POLICIES                             |
+|  Blocks roblox.com and rbxcdn.com                |
++--------------------------------------------------+
+                         |
+                         v
++--------------------------------------------------+
+|  5. AUTOMATIC CHECKS                             |
+|  Finds new versions and repairs missing parts    |
++--------------------------------------------------+
+```
+
+Each layer works separately. If one layer is unavailable, the other layers can
+still block Roblox.
+
+# Requirements
+
+## Supported Windows Versions
+
+- Windows 10
+- Windows 11
+- 32-bit Windows
+- 64-bit Windows
+- standalone computers
+- domain-joined computers
+
+## PowerShell
+
+- Windows PowerShell 5.1 or newer
+
+The script can be started from PowerShell 7, but Windows-specific background
+tasks use Windows PowerShell 5.1 for compatibility.
+
+## Administrator Rights
+
+Administrator rights are required for:
+
+- installation;
+- repair;
+- firewall changes;
+- policy changes;
+- scheduled task creation;
+- uninstall.
+
+The restricted user should use a **standard Windows account**.
+
+A Windows administrator can remove the blocking configuration.
+
+## Windows Components Used
+
+The script uses built-in Windows components when they are available:
+
 - Windows Defender Firewall;
-- Software Restriction Policies;
-- files under `C:\ProgramData`;
-- scheduled tasks running as `SYSTEM`;
-- optional Windows Event Log source registration.
+- `NetSecurity`;
+- `ScheduledTasks`;
+- AppX cmdlets;
+- CIM/WMI;
+- Windows Registry;
+- Windows Event Log, when enabled.
 
-The script intentionally does not rely on an interactive UAC prompt during
-silent enterprise deployment.
+Missing components are handled with fallbacks where possible.
 
-## Installation
+# Installation Details
 
-### Standard silent installation
+## Standard Silent Installation
 
-From an elevated PowerShell session:
+Run from an Administrator PowerShell window:
 
 ```powershell
 powershell.exe `
@@ -362,7 +337,9 @@ powershell.exe `
     -File "$env:USERPROFILE\AppData\w_temp\Block-Roblox-All.ps1"
 ```
 
-### Installation with verbose diagnostics
+## Installation with Visible Details
+
+Do not use `-WindowStyle Hidden` when you want to see messages.
 
 ```powershell
 powershell.exe `
@@ -374,9 +351,7 @@ powershell.exe `
     -Verbose
 ```
 
-Do not use `-WindowStyle Hidden` when you want to read verbose console output.
-
-### Installation with Windows Event Log integration
+## Installation with Windows Event Log
 
 ```powershell
 powershell.exe `
@@ -389,24 +364,7 @@ powershell.exe `
     -EnableEventLog
 ```
 
-### Installation with signature enforcement
-
-Use this mode only after signing the script with a trusted code-signing
-certificate:
-
-```powershell
-powershell.exe `
-    -NoLogo `
-    -NoProfile `
-    -NonInteractive `
-    -WindowStyle Hidden `
-    -ExecutionPolicy Bypass `
-    -File "$env:USERPROFILE\AppData\w_temp\Block-Roblox-All.ps1" `
-    -RequireValidSignature `
-    -EnableEventLog
-```
-
-### Custom maintenance intervals
+## Custom Check Intervals
 
 Example:
 
@@ -422,44 +380,30 @@ powershell.exe `
     -HealthCheckIntervalHours 24
 ```
 
-## Command modes
+# Available Commands
 
-### Standard installation or repair
-
-Running the script without a mode parameter installs the solution or repairs
-the existing deployment.
+## Normal Install or Repair
 
 ```powershell
 .\Block-Roblox-All.ps1
 ```
 
-The operation is idempotent: repeated runs reconcile the desired configuration
-instead of intentionally creating duplicate managed resources.
+Running the script again should update or repair the existing configuration
+without intentionally creating duplicates.
 
-### `-WhatIf`
-
-Simulates supported changes:
+## Simulate Changes
 
 ```powershell
 .\Block-Roblox-All.ps1 -WhatIf -Verbose
 ```
 
-Use this before initial deployment and before changing enterprise deployment
-packages.
-
-### `-Verbose`
-
-Displays detailed processing information:
+## Show Detailed Output
 
 ```powershell
 .\Block-Roblox-All.ps1 -Verbose
 ```
 
-Structured logs are written independently of verbose console output.
-
-### `-RefreshOnly`
-
-Updates only the firewall layer:
+## Update Firewall Rules Only
 
 ```powershell
 powershell.exe `
@@ -472,25 +416,23 @@ powershell.exe `
     -RefreshOnly
 ```
 
-`RefreshOnly`:
+`-RefreshOnly`:
 
-- scans known Roblox locations;
-- discovers current executable paths;
+- searches known Roblox folders;
+- finds current Roblox executable files;
 - adds or repairs managed firewall rules;
-- reconciles AppX package rules when AppX information is available.
+- checks AppX package rules when AppX information is available.
 
-`RefreshOnly` does **not**:
+`-RefreshOnly` does not:
 
-- modify SRP;
 - modify browser policies;
-- recreate scheduled tasks;
+- modify Software Restriction Policies;
+- rewrite scheduled tasks;
 - rewrite the guard script;
-- rewrite installed payload files;
-- terminate running processes.
+- rewrite installed script files;
+- stop running Roblox processes.
 
-### `-RepairOnly`
-
-Performs a full health reconciliation of managed components:
+## Repair All Managed Parts
 
 ```powershell
 powershell.exe `
@@ -503,62 +445,36 @@ powershell.exe `
     -RepairOnly
 ```
 
-This mode is normally used by the health-check and process-guard components.
-
-### `-Uninstall`
-
-Removes managed blocking components:
+## Enable Windows Event Log Entries
 
 ```powershell
-powershell.exe `
-    -NoLogo `
-    -NoProfile `
-    -NonInteractive `
-    -WindowStyle Hidden `
-    -ExecutionPolicy Bypass `
-    -File "C:\ProgramData\RobloxBlock\Block-Roblox-All.ps1" `
-    -Uninstall
+.\Block-Roblox-All.ps1 -EnableEventLog
 ```
 
-### `-PreserveLogs`
-
-Keeps logs during uninstall:
-
-```powershell
-powershell.exe `
-    -NoLogo `
-    -NoProfile `
-    -NonInteractive `
-    -WindowStyle Hidden `
-    -ExecutionPolicy Bypass `
-    -File "C:\ProgramData\RobloxBlock\Block-Roblox-All.ps1" `
-    -Uninstall `
-    -PreserveLogs
-```
-
-### `-EnableEventLog`
-
-Enables additional reporting to the Windows `Application` log with source:
+The Event Log source is:
 
 ```text
 RobloxBlock
 ```
 
-### `-RequireValidSignature`
+## Require a Valid Script Signature
 
-Refuses installation, refresh, repair, or removal when the active script does
-not have a valid trusted Authenticode signature.
+Use this only after signing the script with a trusted certificate:
 
-## Verification
+```powershell
+.\Block-Roblox-All.ps1 -RequireValidSignature
+```
 
-### Verify scheduled tasks
+# How to Verify the Installation
+
+## Check Scheduled Tasks
 
 ```powershell
 Get-ScheduledTask -TaskName "RobloxBlock-*" |
     Select-Object TaskName, State
 ```
 
-Expected task names:
+Expected task names may include:
 
 ```text
 RobloxBlock-ProcessGuard
@@ -566,24 +482,14 @@ RobloxBlock-AutoRefresh
 RobloxBlock-HealthCheck
 ```
 
-### Verify firewall rules
-
-Using `NetSecurity`:
+## Check Firewall Rules
 
 ```powershell
 Get-NetFirewallRule -Group "RobloxBlock" |
     Select-Object DisplayName, Enabled, Direction, Action
 ```
 
-Inspect executable paths:
-
-```powershell
-Get-NetFirewallRule -Group "RobloxBlock" |
-    Get-NetFirewallApplicationFilter |
-    Select-Object Program, Package
-```
-
-Expected rule characteristics:
+Expected values:
 
 ```text
 Enabled   : True
@@ -591,7 +497,15 @@ Direction : Outbound
 Action    : Block
 ```
 
-### Verify Windows Firewall profiles
+Check linked program paths:
+
+```powershell
+Get-NetFirewallRule -Group "RobloxBlock" |
+    Get-NetFirewallApplicationFilter |
+    Select-Object Program, Package
+```
+
+## Check Windows Firewall Profiles
 
 ```powershell
 Get-NetFirewallProfile |
@@ -606,11 +520,10 @@ Private True
 Public  True
 ```
 
-The script logs warnings when profiles are disabled. It does not silently
-enable profiles because firewall-profile management may be controlled by domain
-policy or an endpoint-security platform.
+The script warns when a profile is disabled. It does not automatically enable
+the profile because another Windows policy may control it.
 
-### Verify Edge policy
+## Check Edge
 
 Open:
 
@@ -618,13 +531,13 @@ Open:
 edge://policy
 ```
 
-Locate:
+Look for:
 
 ```text
 URLBlocklist
 ```
 
-### Verify Chrome policy
+## Check Chrome
 
 Open:
 
@@ -632,13 +545,13 @@ Open:
 chrome://policy
 ```
 
-Locate:
+Look for:
 
 ```text
 URLBlocklist
 ```
 
-### Verify Firefox policy
+## Check Firefox
 
 Open:
 
@@ -646,13 +559,13 @@ Open:
 about:policies
 ```
 
-Locate the active:
+Look for:
 
 ```text
 WebsiteFilter
 ```
 
-### Verify SRP rules
+## Check Software Restriction Policy Rules
 
 ```powershell
 Get-ChildItem `
@@ -667,7 +580,7 @@ Get-ChildItem `
     Select-Object Description, ItemData
 ```
 
-### Verify installed file hashes
+## Check Installed File Hashes
 
 ```powershell
 Get-FileHash `
@@ -679,17 +592,9 @@ Get-FileHash `
     -Algorithm SHA256
 ```
 
-### Check the last task results
+# Installed Files and Tasks
 
-```powershell
-Get-ScheduledTaskInfo -TaskName "RobloxBlock-ProcessGuard"
-Get-ScheduledTaskInfo -TaskName "RobloxBlock-AutoRefresh"
-Get-ScheduledTaskInfo -TaskName "RobloxBlock-HealthCheck"
-```
-
-## Installed components
-
-Default installation directory:
+Default folder:
 
 ```text
 C:\ProgramData\RobloxBlock
@@ -708,7 +613,7 @@ C:\ProgramData\RobloxBlock\
 `-- rotated log files
 ```
 
-### Scheduled tasks
+Scheduled tasks:
 
 ```text
 RobloxBlock-ProcessGuard
@@ -716,35 +621,27 @@ RobloxBlock-AutoRefresh
 RobloxBlock-HealthCheck
 ```
 
-### Firewall group
+Firewall group:
 
 ```text
 RobloxBlock
 ```
 
-### Windows Event Log source
+# Logs
 
-When enabled:
-
-```text
-RobloxBlock
-```
-
-## Logging and monitoring
-
-### Main structured log
+## Main Log
 
 ```text
 C:\ProgramData\RobloxBlock\RobloxBlock.jsonl
 ```
 
-### Process guard log
+## Process Guard Log
 
 ```text
 C:\ProgramData\RobloxBlock\RobloxProcessGuard.jsonl
 ```
 
-### Read recent events
+## Read Recent Log Entries
 
 ```powershell
 Get-Content `
@@ -752,7 +649,7 @@ Get-Content `
     -Tail 100
 ```
 
-### Follow the process guard log
+## Watch the Process Guard Log
 
 ```powershell
 Get-Content `
@@ -760,7 +657,7 @@ Get-Content `
     -Wait
 ```
 
-### Parse JSON Lines
+## Convert the Log to PowerShell Objects
 
 ```powershell
 Get-Content `
@@ -771,7 +668,7 @@ Get-Content `
     Select-Object TimestampUtc, Level, Component, EventId, Message
 ```
 
-### Filter errors
+## Show Only Errors
 
 ```powershell
 Get-Content `
@@ -782,9 +679,9 @@ Get-Content `
     Where-Object Level -eq "Error"
 ```
 
-### Windows Event Log
+## Read Windows Event Log Entries
 
-When `-EnableEventLog` is configured:
+When `-EnableEventLog` is enabled:
 
 ```powershell
 Get-WinEvent `
@@ -795,277 +692,144 @@ Get-WinEvent `
     -MaxEvents 100
 ```
 
-JSON Lines logs are always the primary diagnostic source. Windows Event Log
-integration is optional and intended for centralized collection systems.
+# Safety and Recovery
 
-## Security and reliability
+## Safe Administrator Check
 
-### Administrative privilege check
+The script checks administrator rights without creating temporary test files.
 
-The script verifies membership in the local Administrators group without
-writing temporary privilege-test files.
+## Protected Installation Folder
 
-If elevation is unavailable, the script exits without applying machine-wide
-changes.
+The script restricts write access to the installation folder.
 
-### Protected installation directory
-
-The installation directory is restricted to:
+Expected full-control accounts:
 
 - `NT AUTHORITY\SYSTEM`;
 - local Administrators.
 
-The script checks for unsafe reparse points before privileged file writes.
+## Safer File Updates
 
-### Atomic writes
+Important files are written through temporary sibling files and then replaced.
 
-Critical files are written through temporary sibling files and replaced
-atomically where supported:
+This is used for items such as:
 
 - Firefox `policies.json`;
-- state file;
-- guard script;
-- installed primary and backup scripts.
+- the state file;
+- the guard script;
+- installed script copies.
 
-This reduces the chance of leaving a truncated or partially written policy
-file after a crash or power failure.
+This reduces the chance of leaving a half-written file after a crash or power
+failure.
 
-### Input and state validation
+## Validation
 
-The script validates:
+The script checks items such as:
 
-- trusted installation path ownership;
-- state-file schema;
-- known state properties;
-- SHA-256 value format;
-- scheduled-task definitions;
-- managed rule identities;
-- browser policy entries.
+- installation paths;
+- state-file format;
+- SHA-256 values;
+- scheduled task settings;
+- managed firewall rules;
+- managed browser policy values.
 
-### Rollback
+## Rollback
 
-During installation or repair, the script registers rollback actions for
-reversible changes created by the current run.
+If a serious installation error happens, the script attempts to undo changes
+made by the current run.
 
-Rollback may restore:
+Items that may be restored include:
 
 - files;
-- previous file contents;
 - registry values;
-- SRP rules;
 - browser policy entries;
 - Firefox policy data;
+- Software Restriction Policy rules;
 - newly created firewall rules;
-- previous scheduled-task XML definitions;
-- Event Log source registration;
-- safe previous ACLs.
+- earlier scheduled task definitions.
 
-Some actions are inherently irreversible, such as terminating an already
-running Roblox process.
+Stopping a process cannot be undone.
 
-### Idempotency
+## No Intentional Duplicates
 
-Repeated execution is designed not to intentionally duplicate:
+Running the script again is designed not to intentionally duplicate:
 
 - firewall rules;
-- SRP rules;
-- browser URL entries;
+- browser entries;
+- Software Restriction Policy rules;
 - scheduled tasks;
-- installed payload files;
-- managed state records.
+- installed payload files.
 
-Managed resources are identified through deterministic names and fingerprints.
+## Automatic Repair
 
-### Self-healing
+The health check can restore missing or changed managed components.
 
-Periodic health checks verify:
+# Performance
 
-- primary script integrity;
-- backup script integrity;
-- guard-script presence and content;
-- scheduled tasks;
-- firewall rules;
-- SRP rules;
-- Edge policy;
-- Chrome policy;
-- Firefox policy.
+The script reduces background load by using:
 
-Missing or modified managed components are reconciled automatically.
+- event-based process detection;
+- targeted process checks;
+- no continuous full-process scan;
+- no full-disk scan;
+- file scans limited to known Roblox folders;
+- `[IO.Directory]::EnumerateFiles`;
+- reusable file filters;
+- cached information during each run;
+- hash sets for existing rule names;
+- firewall-only work during `-RefreshOnly`;
+- `gpupdate` only when relevant policy data changes;
+- configurable maintenance intervals.
 
-## Performance
+The script does not keep `pktmon` running.
 
-The implementation minimizes long-running background overhead:
+`pktmon` is useful for temporary network diagnostics, but it is not needed for
+blocking Roblox and would create unnecessary background work and trace files.
 
-- event-driven process detection;
-- targeted process queries;
-- no continuous packet capture;
-- no permanent `pktmon` session;
-- no continuous full-disk scan;
-- scans limited to known Roblox locations;
-- `[IO.Directory]::EnumerateFiles` for efficient file discovery;
-- reusable filters for `Roblox*.exe` and Store-package `*.exe`;
-- cached profile and AppX discovery within a run;
-- existing firewall-rule names loaded into case-insensitive hash sets;
-- browser and SRP reconciliation excluded from `RefreshOnly`;
-- `gpupdate` executed only after relevant SRP changes;
-- configurable refresh and health-check intervals.
+# Compatibility
 
-## Compatibility
+## 32-bit and 64-bit Windows
 
-### Windows editions
+The script handles:
 
-The script is designed for Windows 10 and Windows 11, including Home editions
-where some enterprise-oriented modules or management features may be missing.
+- missing `ProgramFiles(x86)` on 32-bit Windows;
+- 32-bit PowerShell on 64-bit Windows;
+- multiple user profiles;
+- damaged or inaccessible profile registry records.
 
-Fallback behavior is used where possible.
+## When NetSecurity Is Missing
 
-### 32-bit and 64-bit systems
+The script attempts to use the Windows Firewall COM interface.
 
-The implementation accounts for:
+## When AppX Commands Are Missing
 
-- missing `ProgramFiles(x86)` on 32-bit systems;
-- 32-bit PowerShell running on 64-bit Windows;
-- native Windows PowerShell relaunch when required;
-- multiple user profile paths;
-- damaged or inaccessible profile registry entries.
+The script continues with:
 
-### NetSecurity unavailable
+- executable firewall rules;
+- browser policies;
+- Software Restriction Policies;
+- process blocking.
 
-When `NetSecurity` cannot be loaded, the script attempts to use the Windows
-Firewall COM API.
+Package-specific detection may be skipped.
 
-### AppX unavailable
+## When CIM or WMI Is Missing
 
-When AppX cmdlets are unavailable:
+The script logs a warning and uses available fallback behavior.
 
-- AppX package discovery is skipped gracefully;
-- executable-path firewall blocking remains active;
-- existing package-specific managed rules are not blindly removed when their
-  current package state cannot be verified.
+Other blocking layers continue to work.
 
-### CIM/WMI unavailable
+## Domain-Managed Computers
 
-If CIM or WMI is unavailable:
+Company or school policies may override local settings.
 
-- Store-process path validation may be limited;
-- the process guard uses a targeted fallback;
-- other blocking layers remain active;
-- warnings are written to the structured log.
+The script does not try to bypass centrally managed Windows security settings.
 
-### Domain environments
+# Troubleshooting
 
-Domain Group Policy, MDM, endpoint security, or application-control policies
-may override local configuration.
+## The Script Appears to Do Nothing
 
-The script reports conflicts where detectable but does not attempt to defeat
-centrally managed security policy.
+Silent operation is normal.
 
-## Corporate deployment
-
-### GPO startup script
-
-Recommended approach:
-
-1. Store the signed script in a read-only SYSVOL location.
-2. Configure a computer startup script.
-3. Run it under the computer account.
-4. Use `-RequireValidSignature`.
-5. Enable Event Log integration for central collection.
-
-Example command:
-
-```powershell
-powershell.exe `
-    -NoLogo `
-    -NoProfile `
-    -NonInteractive `
-    -WindowStyle Hidden `
-    -ExecutionPolicy AllSigned `
-    -File "\\contoso.local\SYSVOL\contoso.local\scripts\Block-Roblox-All.ps1" `
-    -RequireValidSignature `
-    -EnableEventLog
-```
-
-### SCCM / MECM
-
-Installation command:
-
-```text
-powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File Block-Roblox-All.ps1 -EnableEventLog
-```
-
-Uninstall command:
-
-```text
-powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\ProgramData\RobloxBlock\Block-Roblox-All.ps1 -Uninstall
-```
-
-Possible detection methods:
-
-- installed primary script exists;
-- `state.json` exists and reports version `0.0.3`;
-- all three scheduled tasks exist;
-- firewall group contains enabled outbound block rules.
-
-### Intune
-
-Deploy as a Win32 application or device-context PowerShell script.
-
-Recommended settings:
-
-- run using the logged-on credentials: **No**;
-- run script in 64-bit PowerShell: **Yes**;
-- enforce script signature check: according to corporate policy;
-- use device context;
-- collect exit codes and logs.
-
-### RMM tools
-
-Run under `SYSTEM` or an elevated service account. Do not run the initial
-deployment under a standard interactive user account.
-
-## Code signing
-
-### Check the current signature
-
-```powershell
-Get-AuthenticodeSignature ".\Block-Roblox-All.ps1" |
-    Format-List
-```
-
-### Sign the script
-
-```powershell
-$certificate = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert |
-    Select-Object -First 1
-
-Set-AuthenticodeSignature `
-    -FilePath ".\Block-Roblox-All.ps1" `
-    -Certificate $certificate `
-    -TimestampServer "<corporate timestamp server>"
-```
-
-For enterprise deployment, use a certificate issued by a trusted corporate or
-public code-signing authority and a trusted timestamp service.
-
-### Enforce the signature
-
-```powershell
-.\Block-Roblox-All.ps1 `
-    -RequireValidSignature `
-    -EnableEventLog
-```
-
-Do not modify a signed script after signing it. Any content change invalidates
-the signature.
-
-## Troubleshooting
-
-### The script appears to do nothing
-
-Silent operation is expected.
-
-Run without `-WindowStyle Hidden` and add `-Verbose`:
+Run without `-WindowStyle Hidden`:
 
 ```powershell
 powershell.exe `
@@ -1077,15 +841,15 @@ powershell.exe `
     -Verbose
 ```
 
-Then inspect:
+Then check:
 
 ```text
 C:\ProgramData\RobloxBlock\RobloxBlock.jsonl
 ```
 
-### Administrator rights are missing
+## PowerShell Is Not Running as Administrator
 
-Verify:
+Run:
 
 ```powershell
 ([Security.Principal.WindowsPrincipal] `
@@ -1095,11 +859,15 @@ Verify:
 )
 ```
 
-The result must be `True`.
+The result must be:
 
-### Roblox still reaches the network
+```text
+True
+```
 
-Check Windows Firewall profiles:
+## Roblox Still Has Internet Access
+
+Check Windows Firewall:
 
 ```powershell
 Get-NetFirewallProfile |
@@ -1112,7 +880,7 @@ Check managed rules:
 Get-NetFirewallRule -Group "RobloxBlock"
 ```
 
-Run an immediate refresh:
+Run a firewall refresh:
 
 ```powershell
 powershell.exe `
@@ -1125,11 +893,11 @@ powershell.exe `
     -Verbose
 ```
 
-### Browser policies are not visible
+## Browser Blocking Is Not Visible
 
-Fully close and reopen the browser.
+Close the browser completely and start it again.
 
-Review:
+Then open:
 
 ```text
 edge://policy
@@ -1137,11 +905,9 @@ chrome://policy
 about:policies
 ```
 
-In Chromium browsers, select the policy reload option.
+## A Task Was Deleted
 
-### A scheduled task is missing
-
-Run a repair:
+Run:
 
 ```powershell
 powershell.exe `
@@ -1154,66 +920,50 @@ powershell.exe `
     -Verbose
 ```
 
-### The process guard is not running
+## The Process Guard Is Not Running
 
 ```powershell
 Get-ScheduledTask -TaskName "RobloxBlock-ProcessGuard"
 Get-ScheduledTaskInfo -TaskName "RobloxBlock-ProcessGuard"
 ```
 
-Review:
+Check:
 
 ```text
 C:\ProgramData\RobloxBlock\RobloxProcessGuard.jsonl
 ```
 
-### Firefox policy JSON was already invalid
+## Firefox Already Has a Broken policies.json File
 
-The script does not overwrite an existing invalid Firefox JSON policy file
-without safely parsing it.
+The script does not intentionally overwrite an existing policy file that
+cannot be parsed safely.
 
-Manually validate or repair:
+Check:
 
 ```text
-<Firefox installation directory>\distribution\policies.json
+<Firefox installation folder>\distribution\policies.json
 ```
 
-Then rerun installation or `-RepairOnly`.
+Repair the JSON and run the script again.
 
-### AppX detection is unavailable
-
-Review the log for AppX warnings.
-
-Desktop executable blocking, SRP, browser policies, and the process guard can
-still operate even when AppX package discovery is unavailable.
-
-### `NetSecurity` is unavailable
-
-The script attempts a COM firewall fallback.
-
-Review the structured log to confirm which firewall backend was selected.
-
-### Exit codes
-
-Common documented exit codes include:
+## Common Exit Codes
 
 | Code | Meaning |
 |---:|---|
-| `0` | Operation completed successfully |
-| `1` | Unhandled or critical deployment failure |
-| `2` | The script could not determine a valid execution path |
-| `3` | Firewall initialization or update failed |
-| `5` | Administrator privileges are required |
-| `6` | Signature validation failed |
+| `0` | The operation completed |
+| `1` | A serious error occurred |
+| `2` | The script path could not be determined |
+| `3` | Firewall setup or update failed |
+| `5` | Administrator rights are required |
+| `6` | Script signature validation failed |
 
-Deployment systems should also collect the structured log because it contains
-more detailed component-level error information than an exit code alone.
+The log normally contains more useful details than the exit code.
 
-## Uninstallation
+# Uninstall
 
-### Standard silent uninstall
+## Standard Silent Uninstall
 
-Open an elevated Windows PowerShell session and run:
+Open PowerShell as Administrator and run:
 
 ```powershell
 powershell.exe `
@@ -1226,7 +976,7 @@ powershell.exe `
     -Uninstall
 ```
 
-### Uninstall while preserving logs
+## Keep Logs During Uninstall
 
 ```powershell
 powershell.exe `
@@ -1240,45 +990,113 @@ powershell.exe `
     -PreserveLogs
 ```
 
-The uninstall operation removes only resources managed by this project,
-including:
+The uninstall process removes only items managed by this project, including:
 
 - scheduled tasks;
 - managed firewall rules;
-- managed browser URL entries;
-- managed Firefox policy entries;
-- managed SRP rules;
-- process guard;
-- installation state and payload files, subject to the selected log-retention
-  option.
+- managed browser entries;
+- managed Firefox entries;
+- managed Software Restriction Policy rules;
+- the process guard;
+- installed payload files.
 
-Unrelated existing browser policies, firewall rules, and SRP rules should not
-be removed.
+Unrelated firewall rules and browser policies should remain unchanged.
 
-## Release v0.0.3
+# Optional: Installation on Several Computers
 
-### Highlights
+Most home users do not need this section.
 
-- Production-oriented multi-layer Roblox blocking.
-- Transaction-aware deployment and rollback.
-- Idempotent installation, refresh, repair, and uninstall.
-- Strict `RefreshOnly` isolation.
-- Event-driven Roblox process guard.
-- Automatic self-healing and component integrity checks.
-- Protected primary and backup script copies.
-- Structured JSON Lines logs with rotation.
-- Optional Windows Event Log integration.
-- Optional Authenticode signature enforcement.
-- `NetSecurity` firewall backend with COM fallback.
-- Graceful AppX, CIM, and WMI degradation.
-- Support for Windows 10/11 and PowerShell 5.1+.
-- Support for `-WhatIf` and `-Verbose`.
-- Improved file enumeration with `[IO.Directory]::EnumerateFiles`.
-- Reduced duplicate file-system scans.
-- Cleaner function naming and logical code regions.
-- Silent uninstall with optional log preservation.
+## GPO Startup Script
 
-### Recommended GitHub release metadata
+A school, office, or home lab can run the script as a computer startup script.
+
+Example:
+
+```powershell
+powershell.exe `
+    -NoLogo `
+    -NoProfile `
+    -NonInteractive `
+    -WindowStyle Hidden `
+    -ExecutionPolicy AllSigned `
+    -File "\\example.local\SYSVOL\example.local\scripts\Block-Roblox-All.ps1" `
+    -RequireValidSignature `
+    -EnableEventLog
+```
+
+## SCCM or MECM
+
+Install:
+
+```text
+powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File Block-Roblox-All.ps1 -EnableEventLog
+```
+
+Uninstall:
+
+```text
+powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\ProgramData\RobloxBlock\Block-Roblox-All.ps1 -Uninstall
+```
+
+## Intune
+
+Suggested settings:
+
+- run using logged-on credentials: **No**;
+- run in 64-bit PowerShell: **Yes**;
+- run in device context;
+- collect exit codes and logs.
+
+# Optional: Code Signing
+
+Most home users can skip this section.
+
+## Check a Signature
+
+```powershell
+Get-AuthenticodeSignature ".\Block-Roblox-All.ps1" |
+    Format-List
+```
+
+## Sign the Script
+
+```powershell
+$certificate = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert |
+    Select-Object -First 1
+
+Set-AuthenticodeSignature `
+    -FilePath ".\Block-Roblox-All.ps1" `
+    -Certificate $certificate `
+    -TimestampServer "<timestamp server>"
+```
+
+After signing, do not edit the file. Any edit invalidates the signature.
+
+# Version 0.0.3
+
+## Main Changes
+
+- multi-layer Roblox blocking;
+- silent installation and uninstall;
+- firewall, browser, SRP, and process blocking;
+- event-based process guard;
+- automatic firewall refresh;
+- health checks and repair;
+- protected installed and backup script copies;
+- JSON Lines logging with rotation;
+- optional Windows Event Log entries;
+- optional signature checking;
+- firewall COM fallback;
+- AppX, CIM, and WMI fallback behavior;
+- Windows 10 and Windows 11 support;
+- PowerShell 5.1 support;
+- `-WhatIf` and `-Verbose`;
+- faster file discovery with `[IO.Directory]::EnumerateFiles`;
+- fewer repeated file scans;
+- clearer script sections and naming;
+- optional log preservation during uninstall.
+
+Recommended GitHub release settings:
 
 ```text
 Tag: v0.0.3
@@ -1286,67 +1104,27 @@ Release title: Roblox Block for Windows v0.0.3
 Target branch: main
 ```
 
-## Operational notes
+# Before Installing on Several Computers
 
-### Software Restriction Policies
+- [ ] Read the script.
+- [ ] Run `-WhatIf -Verbose`.
+- [ ] Test on one Windows 10 or Windows 11 computer.
+- [ ] Restart the computer.
+- [ ] Check all scheduled tasks.
+- [ ] Test the Roblox desktop client.
+- [ ] Test Roblox Studio.
+- [ ] Test the Microsoft Store version when installed.
+- [ ] Test Roblox websites.
+- [ ] Test `-RefreshOnly`.
+- [ ] Test `-RepairOnly`.
+- [ ] Test `-Uninstall`.
+- [ ] Keep a backup of the original script.
 
-SRP is retained to preserve the project's required architecture and broad
-Windows compatibility.
+# Disclaimer
 
-For new enterprise application-control programs, also evaluate:
-
-- AppLocker;
-- App Control for Business;
-- Windows Defender Application Control;
-- centralized GPO or MDM policy.
-
-### Packet Monitor
-
-The script does not keep `pktmon` running.
-
-`pktmon` is useful for temporary packet diagnostics and dropped-packet
-analysis, but it is not required for enforcement. Continuous capture would add
-unnecessary overhead and generate trace files.
-
-Actual network blocking is performed by Windows Defender Firewall.
-
-### Browser management notice
-
-Managed browser policies may cause Edge, Chrome, or Firefox to display a notice
-such as:
-
-```text
-Managed by your organization
-```
-
-This is expected when machine-level browser policies are active.
-
-## Security checklist
-
-Before production deployment:
-
-- [ ] Review the complete script.
-- [ ] Test `-WhatIf -Verbose`.
-- [ ] Validate syntax using the PowerShell parser.
-- [ ] Test installation on a Windows 10 VM.
-- [ ] Test installation on a Windows 11 VM.
-- [ ] Reboot and verify all scheduled tasks.
-- [ ] Verify desktop Roblox blocking.
-- [ ] Verify Microsoft Store Roblox blocking.
-- [ ] Verify Roblox Studio blocking.
-- [ ] Verify browser blocking.
-- [ ] Verify firewall refresh after a Roblox update.
-- [ ] Verify `-RepairOnly`.
-- [ ] Verify `-Uninstall`.
-- [ ] Verify rollback after an intentionally induced deployment failure.
-- [ ] Sign the script for managed production deployment.
-- [ ] Pilot deployment on a limited group of endpoints.
-- [ ] Configure central collection of logs or Windows events.
-
-## Disclaimer
-
-This project is provided **as is**, without warranty of any kind.
+This project is provided **as is**, without warranty.
 
 The author and contributors are not responsible for data loss, policy
-conflicts, service interruption, or other damage resulting from use of the
-script.
+conflicts, service interruption, or other problems caused by the script.
+
+Test the script on one computer before using it on several computers.
