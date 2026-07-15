@@ -127,7 +127,7 @@ The guard script (`RobloxProcessGuard.ps1`) subscribes to WMI start events for p
 - A self‑diagnostic function verifies that the guard script and tasks are present; if they are missing, they are reinstalled.
     
 
-## Production‑Readiness Optimizations (Version 5.0)
+## Optimizations
 
 - **Security**
     
