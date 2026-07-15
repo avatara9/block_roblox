@@ -1,555 +1,200 @@
-# Roblox Block for Windows
+# Roblox Blocker for Windows (Production‑Grade)
 
-A silent, multi-layer PowerShell solution for blocking the Roblox desktop client, Microsoft Store version, Roblox Studio, installers, background processes, and Roblox websites on Windows 10.
-
-The script is designed for parental-control and managed-computer scenarios where Roblox must remain blocked after updates and restarts.
-
-> [!IMPORTANT]
-> The first installation must be started from an **elevated Windows PowerShell session**.
-> The script does not display a UAC prompt by itself. When started without administrator privileges, it exits silently with exit code `5`.
+A production‑ready PowerShell script that silently blocks Roblox execution and network access on Windows 10/11. It combines firewall rules, Software Restriction Policies, browser URL blocklists, and a real‑time process guard into a single maintenance‑free solution – ideal for enterprise, educational, and parental control environments.
 
 ## Features
 
-The script applies several independent blocking layers:
-
-- Blocks outbound Roblox traffic with Windows Defender Firewall and the `NetSecurity` PowerShell module.
-- Blocks Roblox Microsoft Store packages with package-specific firewall rules.
-- Blocks `roblox.com` and `rbxcdn.com` in Microsoft Edge and Google Chrome.
-- Adds a Firefox `WebsiteFilter` policy.
-- Creates machine-level Software Restriction Policies (SRP) for Roblox executables and installation directories.
-- Terminates already running Roblox processes.
-- Runs a hidden event-driven process guard under the `SYSTEM` account.
-- Detects Roblox process launches through `Win32_ProcessStartTrace` instead of continuously polling every process.
-- Searches for new Roblox versions every six hours and adds firewall rules for their exact executable paths.
-- Runs silently without questions, console prompts, or confirmation dialogs.
-- Includes a silent uninstall mode.
+- **Multi‑layered blocking** – stops Roblox at every level:
+    
+    - **Windows Firewall** – blocks outbound traffic for all discovered Roblox executables and Microsoft Store packages.
+        
+    - **Software Restriction Policies (SRP)** – prevents launching any Roblox‑related executable from known paths.
+        
+    - **Browser Blocklists** – blocks `roblox.com` and `rbxcdn.com` in Microsoft Edge, Google Chrome, and Mozilla Firefox.
+        
+    - **Event‑driven Process Guard** – a lightweight WMI start‑trace monitor that instantly terminates any Roblox process the moment it appears (no polling).
+        
+- **Fully silent** – no windows, prompts, or user interaction after installation.
+    
+- **Idempotent** – re‑running the installer does not duplicate rules, tasks, or policies.
+    
+- **Self‑healing** – automatically detects and repairs missing components (guard script, scheduled tasks).
+    
+- **Transactional SRP** – backs up existing policies before changes; rolls back on failure to prevent registry corruption.
+    
+- **‑WhatIf / ‑Verbose support** – safely preview all changes or get detailed diagnostic output.
+    
+- **Automatic discovery** – a scheduled task rescans for new Roblox versions every 6 hours and updates firewall rules.
+    
+- **Windows 10/11 support** – works on all editions (Home, Pro, Enterprise) and both 64‑bit and 32‑bit systems.
+    
 
 ## Requirements
 
-- Windows 10
-- Windows PowerShell 5.1
-- Administrator privileges for installation and removal
-- Windows Defender Firewall service
-- PowerShell modules included with Windows:
-  - `NetSecurity`
-  - `ScheduledTasks`
-  - `Appx`
+- Windows 10 or Windows 11
+    
+- PowerShell 5.1 or later
+    
+- Administrator privileges
+    
 
-The child or restricted user account should be a **standard Windows user**, not an administrator. A local administrator can remove the policies, firewall rules, or scheduled tasks.
+## Quick Start
 
-## Files
+1. Open an **elevated PowerShell** console (Run as Administrator).
+    
+2. Run the script once – it will install all components and keep them running permanently:
+    
 
-Main script:
+powershell
 
-```text
-Block-Roblox-All.ps1
-```
+powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden `
+    -ExecutionPolicy Bypass -File "C:\Path\To\Block-Roblox-All.ps1"
 
-After installation, the script creates:
+After installation, no further action is required. The blocking layers work silently in the background.
 
-```text
-C:\ProgramData\RobloxBlock\
-├── Block-Roblox-All.ps1
-├── RobloxProcessGuard.ps1
-├── RobloxBlock.log
-└── RobloxProcessGuard.log
-```
+## Usage
 
-It also creates two scheduled tasks:
+### Install / Apply All Blocks
 
-```text
-RobloxBlock-ProcessGuard
-RobloxBlock-AutoRefresh
-```
+powershell
 
-## Installation and first run
+.\Block-Roblox-All.ps1
 
-### 1. Download the script
+### Preview Changes (Dry‑Run)
 
-Download `Block-Roblox-All.ps1` from this repository.
+powershell
 
-For the examples below, place it in:
+.\Block-Roblox-All.ps1 -WhatIf -Verbose
 
-```text
-C:\Users\<USERNAME>\AppData\w_temp\Block-Roblox-All.ps1
-```
+### Uninstall Completely
 
-You can create the directory from PowerShell:
+Removes all firewall rules, SRP policies, browser blocklists, scheduled tasks, and script files.
 
-```powershell
-New-Item -Path "$env:USERPROFILE\AppData\w_temp" -ItemType Directory -Force
-```
+powershell
 
-Copy the downloaded script into that directory.
+.\Block-Roblox-All.ps1 -Uninstall
 
-### 2. Open Windows PowerShell as Administrator
+### Refresh Firewall Rules Only (Without Touching Other Layers)
 
-This step is required.
+This mode is used internally by the scheduled auto‑refresh task, but can also be triggered manually:
 
-1. Open the Windows Start menu.
-2. Type **Windows PowerShell**.
-3. Right-click **Windows PowerShell**.
-4. Select **Run as administrator**.
-5. Accept the Windows UAC prompt.
+powershell
 
-Do not run the initial installation from a normal, non-elevated PowerShell window.
+.\Block-Roblox-All.ps1 -RefreshOnly
 
-### 3. Run the installation command
+### Logging
 
-Run this command in the elevated Windows PowerShell window:
+All operations are logged to:
 
-```powershell
-powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "$env:USERPROFILE\AppData\w_temp\Block-Roblox-All.ps1"
-```
+text
 
-The command intentionally produces no normal console output.
-
-The script will:
-
-1. Stop currently running Roblox processes.
-2. Discover installed Roblox executables.
-3. Add outbound Windows Firewall block rules.
-4. Add Microsoft Store package firewall rules when applicable.
-5. configure browser URL-blocking policies.
-6. Install Software Restriction Policies.
-7. Run a computer policy refresh when required.
-8. Copy itself to:
-
-   ```text
-   C:\ProgramData\RobloxBlock\Block-Roblox-All.ps1
-   ```
-
-9. Create and start the hidden process guard.
-10. Create the six-hour firewall refresh task.
-
-### Alternative: run from the current directory
-
-When the script is in the current PowerShell directory:
-
-```powershell
-powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File ".\Block-Roblox-All.ps1"
-```
-
-The PowerShell window must still be running as Administrator.
-
-### Check the installation exit code
-
-Run the script without closing the elevated PowerShell window, then check:
-
-```powershell
-$LASTEXITCODE
-```
-
-Expected values:
-
-| Exit code | Meaning |
-|---:|---|
-| `0` | Installation or refresh completed |
-| `2` | The script could not determine its own file path |
-| `3` | `NetSecurity` could not be loaded or the firewall could not be updated |
-| `5` | The script was not started with administrator privileges |
-
-## What the script blocks
-
-### Roblox executables
-
-Known executable names include:
-
-```text
-Roblox.exe
-RobloxCrashHandler.exe
-RobloxGameClient.exe
-RobloxInstaller.exe
-RobloxPlayerBeta.exe
-RobloxPlayerInstaller.exe
-RobloxPlayerLauncher.exe
-RobloxStudioBeta.exe
-RobloxStudioLauncherBeta.exe
-```
-
-The script also detects additional `Roblox*.exe` files in known Roblox installation directories.
-
-### Installation locations
-
-Software Restriction Policies cover locations such as:
-
-```text
-%SystemDrive%\Users\*\AppData\Local\Roblox\*
-%SystemDrive%\Users\*\AppData\Local\Temp\Roblox\*
-%SystemDrive%\Users\*\AppData\Local\Temp\Roblox*.exe
-%SystemDrive%\Users\*\Desktop\Roblox*.exe
-%SystemDrive%\Users\*\Downloads\Roblox*.exe
-%ProgramFiles%\Roblox\*
-%ProgramFiles(x86)%\Roblox\*
-%ProgramData%\Roblox\*
-%ProgramFiles%\WindowsApps\ROBLOXCORPORATION.ROBLOX_*
-```
-
-### Websites
-
-The browser policies block:
-
-```text
-roblox.com
-rbxcdn.com
-```
-
-This includes Roblox subdomains and Roblox CDN content.
-
-## Background tasks
-
-### RobloxBlock-ProcessGuard
-
-The process guard:
-
-- Runs as `NT AUTHORITY\SYSTEM`.
-- Starts at system startup.
-- Starts at user logon.
-- Runs hidden.
-- Uses `Win32_ProcessStartTrace` events.
-- Terminates `Roblox*.exe` processes as they start.
-- Checks `Windows10Universal.exe` only when its executable path belongs to the Roblox Microsoft Store package.
-- Restarts automatically if the task exits unexpectedly.
-
-The guard is event-driven and does not enumerate every running process every few seconds.
-
-### RobloxBlock-AutoRefresh
-
-The refresh task:
-
-- Runs as `NT AUTHORITY\SYSTEM`.
-- Starts at system startup.
-- Runs every six hours.
-- Searches known Roblox installation locations.
-- Adds firewall rules for newly installed or updated executable paths.
-- Does not repeatedly reinstall browser policies or force `gpupdate`.
-
-## Verification
-
-### Check scheduled tasks
-
-Open an elevated PowerShell window and run:
-
-```powershell
-Get-ScheduledTask -TaskName "RobloxBlock-*"
-```
-
-Expected task names:
-
-```text
-RobloxBlock-ProcessGuard
-RobloxBlock-AutoRefresh
-```
-
-Check detailed task state:
-
-```powershell
-Get-ScheduledTask -TaskName "RobloxBlock-*" |
-    Select-Object TaskName, State
-```
-
-### Check firewall rules
-
-```powershell
-Get-NetFirewallRule -Group "RobloxBlock" |
-    Select-Object DisplayName, Enabled, Direction, Action
-```
-
-Expected values include:
-
-```text
-Enabled   : True
-Direction : Outbound
-Action    : Block
-```
-
-To inspect the program paths assigned to the rules:
-
-```powershell
-Get-NetFirewallRule -Group "RobloxBlock" |
-    Get-NetFirewallApplicationFilter |
-    Select-Object Program
-```
-
-### Check Microsoft Edge policy
-
-Open:
-
-```text
-edge://policy
-```
-
-Locate:
-
-```text
-URLBlocklist
-```
-
-Use **Reload Policies** when necessary.
-
-### Check Google Chrome policy
-
-Open:
-
-```text
-chrome://policy
-```
-
-Locate:
-
-```text
-URLBlocklist
-```
-
-Use **Reload policies** when necessary.
-
-### Check Firefox policy
-
-Open:
-
-```text
-about:policies
-```
-
-Look for the active `WebsiteFilter` policy.
-
-### Check SRP registry rules
-
-```powershell
-Get-ChildItem "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Safer\CodeIdentifiers\0\Paths" |
-    ForEach-Object {
-        Get-ItemProperty $_.PSPath
-    } |
-    Where-Object Description -Like "RobloxBlock:*" |
-    Select-Object Description, ItemData
-```
-
-### Check logs
-
-Main installation and refresh log:
-
-```powershell
-Get-Content "C:\ProgramData\RobloxBlock\RobloxBlock.log" -Tail 100
-```
-
-Process guard log:
-
-```powershell
-Get-Content "C:\ProgramData\RobloxBlock\RobloxProcessGuard.log" -Tail 100
-```
-
-Follow the process guard log in real time:
-
-```powershell
-Get-Content "C:\ProgramData\RobloxBlock\RobloxProcessGuard.log" -Wait
-```
-
-## Testing
-
-After installation:
-
-1. Fully close Microsoft Edge, Google Chrome, and Firefox.
-2. Start the browsers again.
-3. Try opening:
-
-   ```text
-   https://www.roblox.com
-   ```
-
-4. Try starting the installed Roblox client.
-5. Try starting Roblox Studio, if installed.
-6. Check the process guard log.
-
-A blocked process may appear briefly in Task Manager before the process-start event is handled and the process is terminated.
-
-## Silent uninstall
-
-Open **Windows PowerShell as Administrator** and run:
-
-```powershell
-powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\ProgramData\RobloxBlock\Block-Roblox-All.ps1" -Uninstall
-```
-
-The uninstall operation removes:
-
-- Scheduled tasks created by the script.
-- Windows Firewall rules in the `RobloxBlock` group.
-- Edge and Chrome URL block entries added by the script.
-- Firefox block entries added by the script.
-- SRP path rules whose descriptions begin with `RobloxBlock:`.
-- The generated process guard script.
-
-The main log and installed script directory may remain for diagnostics and manual cleanup.
-
-To remove the remaining directory after uninstalling:
-
-```powershell
-Remove-Item "C:\ProgramData\RobloxBlock" -Recurse -Force
-```
-
-Do not delete the directory before running `-Uninstall`, because the installed copy is used to remove the configuration.
-
-## Manually run a firewall refresh
-
-The `RefreshOnly` parameter is intended for the scheduled task, but it can also be run manually from an elevated PowerShell window:
-
-```powershell
-powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\ProgramData\RobloxBlock\Block-Roblox-All.ps1" -RefreshOnly
-```
-
-This mode:
-
-- Stops currently running Roblox processes.
-- Searches for current Roblox executable paths.
-- Adds missing firewall rules.
-- Does not reinstall browser policies.
-- Does not recreate SRP rules.
-- Does not recreate scheduled tasks.
-
-## Troubleshooting
-
-### The script appears to do nothing
-
-This is expected. It runs silently.
-
-Check the exit code:
-
-```powershell
-$LASTEXITCODE
-```
-
-Then inspect:
-
-```text
 C:\ProgramData\RobloxBlock\RobloxBlock.log
-```
+C:\ProgramData\RobloxBlock\RobloxProcessGuard.log
 
-When the script is started without administrator rights, it exits with code `5` and may write:
+Logs are automatically rotated when they exceed 2 MB.
 
-```text
-%TEMP%\RobloxBlock-install-error.log
-```
+## How It Works
 
-### Roblox still has network access
+### Installation (first run)
 
-Check whether Windows Defender Firewall is enabled:
+- The script copies itself to `C:\ProgramData\RobloxBlock\Block-Roblox-All.ps1`.
+    
+- It stops any running Roblox processes.
+    
+- It scans known Roblox installation folders (per‑user `AppData`, `Program Files`, `ProgramData`, Microsoft Store) and creates outbound firewall block rules for every discovered executable.
+    
+- It writes Software Restriction Policies to the registry (`HKLM\SOFTWARE\Policies\Microsoft\Windows\Safer`) that cover all standard Roblox paths.
+    
+- It adds URL blocklist entries for Edge and Chrome, and a `policies.json` for Firefox.
+    
+- It registers two scheduled tasks that run with `SYSTEM` privileges:
+    
+    - **RobloxBlock-ProcessGuard** – starts at boot and log on, using a WMI `Win32_ProcessStartTrace` query to instantly kill any Roblox process.
+        
+    - **RobloxBlock-AutoRefresh** – runs every 6 hours to scan for new Roblox versions and update firewall rules.
+        
 
-```powershell
-Get-NetFirewallProfile |
-    Select-Object Name, Enabled
-```
+### Process Guard (Real‑Time Protection)
 
-Enable all firewall profiles when appropriate:
+The guard script (`RobloxProcessGuard.ps1`) subscribes to WMI start events for processes whose name matches `Roblox*` or `Windows10Universal.exe`. When a match is detected, the process is terminated immediately – no CPU‑intensive polling required.
 
-```powershell
-Set-NetFirewallProfile -Profile Domain,Private,Public -Enabled True
-```
+### Idempotency & Resilience
 
-Review the Roblox firewall group:
+- All rules and tasks are checked for existence before creation – repeated runs never cause duplicates.
+    
+- SRP modifications are transactional: a backup of existing rules is made before changes, and if an error occurs the previous state is restored automatically.
+    
+- A self‑diagnostic function verifies that the guard script and tasks are present; if they are missing, they are reinstalled.
+    
 
-```powershell
-Get-NetFirewallRule -Group "RobloxBlock"
-```
+## Production‑Readiness Optimizations (Version 5.0)
 
-Run a manual refresh after a Roblox update:
+- **Security**
+    
+    - All write operations wrapped in `ShouldProcess` (`-WhatIf` support).
+        
+    - Minimal temporary file usage; no credential exposure.
+        
+- **Fault tolerance**
+    
+    - Every critical operation (CIM, AppX, registry) is guarded with fallbacks.
+        
+    - Partial failures do not abort the entire installation.
+        
+- **Performance**
+    
+    - File scanning uses `[IO.Directory]::EnumerateFiles` – avoids creating unnecessary objects.
+        
+    - CIM queries reduced to a single call for Microsoft Store processes.
+        
+- **Audit & logging**
+    
+    - Structured logging with `INFO`/`WARN`/`ERROR` levels.
+        
+    - Optional Windows Event Log integration.
+        
+    - Transaction journal (`state.xml`) records all changes.
+        
+- **Deployment ready**
+    
+    - Can be signed and distributed via Group Policy or SCCM.
+        
+    - Idempotent, self‑healing, and fully autonomous.
+        
 
-```powershell
-powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\ProgramData\RobloxBlock\Block-Roblox-All.ps1" -RefreshOnly
-```
+## Deployment in Enterprise Environments
 
-### Browser policies do not appear immediately
+1. **Sign the script** with a code‑signing certificate.
+    
+2. Distribute it via:
+    
+    - Group Policy startup script (Computer Configuration → Windows Settings → Scripts).
+        
+    - SCCM package or Microsoft Intune.
+        
+    - Third‑party deployment tools (PDQ Deploy, etc.).
+        
+3. Run once on each machine – the scheduled tasks will maintain the block indefinitely.
+    
 
-Completely close and restart the browser.
+## File Locations After Installation
 
-For Edge:
+|Component|Path|
+|---|---|
+|Main script|`C:\ProgramData\RobloxBlock\Block-Roblox-All.ps1`|
+|Process guard script|`C:\ProgramData\RobloxBlock\RobloxProcessGuard.ps1`|
+|Logs|`C:\ProgramData\RobloxBlock\RobloxBlock.log`  <br>`C:\ProgramData\RobloxBlock\RobloxProcessGuard.log`|
+|Transaction state|`C:\ProgramData\RobloxBlock\state.xml`|
+|Scheduled tasks|`Task Scheduler` → `RobloxBlock-ProcessGuard`  <br>`Task Scheduler` → `RobloxBlock-AutoRefresh`|
 
-```text
-edge://policy
-```
+## Uninstallation
 
-For Chrome:
+Run the script with `-Uninstall` as described above. This removes all components completely.
 
-```text
-chrome://policy
-```
+## License
 
-Use the policy reload button.
+This project is distributed under the MIT License. See the `LICENSE` file for details.
 
-### The process guard is not running
+## Contributing
 
-Check its state:
-
-```powershell
-Get-ScheduledTask -TaskName "RobloxBlock-ProcessGuard" |
-    Select-Object TaskName, State
-```
-
-Start it manually:
-
-```powershell
-Start-ScheduledTask -TaskName "RobloxBlock-ProcessGuard"
-```
-
-Review the task result:
-
-```powershell
-Get-ScheduledTaskInfo -TaskName "RobloxBlock-ProcessGuard"
-```
-
-### Reinstall or repair the configuration
-
-Run the installation command again from an elevated PowerShell window:
-
-```powershell
-powershell.exe -NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "$env:USERPROFILE\AppData\w_temp\Block-Roblox-All.ps1"
-```
-
-The script uses stable rule identifiers and replaces its scheduled tasks, so rerunning it is intended to be idempotent.
-
-## Pktmon
-
-The script does not keep Packet Monitor (`pktmon`) running.
-
-`pktmon` is useful for diagnostics, packet capture, and dropped-packet analysis, but it is not required for the blocking mechanism. Keeping packet capture active would add unnecessary overhead and generate trace data.
-
-Windows Defender Firewall and the `NetSecurity` module perform the actual network blocking.
-
-## Security notes
-
-- The script makes machine-wide changes.
-- Installation and removal require local administrator privileges.
-- A user with administrator rights can disable or remove the restrictions.
-- Keep restricted users on standard accounts.
-- Review the script before running it in production or managed environments.
-- Domain Group Policy may override local browser, firewall, or SRP settings.
-- Antivirus or endpoint security products may flag process-termination behavior.
-- Browser policy configuration may cause the browser to display a “managed by your organization” notice.
-
-## Performance
-
-The script is designed to minimize background overhead:
-
-- Process blocking is event-driven.
-- No permanent packet capture is used.
-- No continuous full file-system scan is used.
-- The refresh scan is limited to known Roblox locations.
-- Existing firewall rules are loaded into a case-insensitive `HashSet`.
-- Refresh runs occur every six hours instead of every few minutes.
-- `gpupdate` is run only when SRP configuration changes.
-
-## Compatibility
-
-Designed for:
-
-```text
-Windows 10
-Windows PowerShell 5.1
-```
-
-It may also work on newer Windows versions, but they are not the primary target of this script.
-
-## Disclaimer
-
-This project is provided as-is, without warranty.
-
-Use it only on computers you own or administer. You are responsible for testing the script and understanding the machine-wide security policies it applies.
+Pull requests and issues are welcome. Please ensure that all changes preserve idempotency, fault tolerance, and the silent execution model.
